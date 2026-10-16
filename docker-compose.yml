@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: iwomihub
+      POSTGRES_USER: hub
+      POSTGRES_PASSWORD: hub
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hub -d iwomihub"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/iwomihub
+      DB_USER: hub
+      DB_PASSWORD: hub
+      HUB_ADMIN_USER: admin
+      HUB_ADMIN_PASSWORD: admin
+      HUB_TOKEN_SECRET: ${HUB_TOKEN_SECRET:-change-this-to-a-long-random-secret-before-real-use}
+      HUB_DEMO: ${HUB_DEMO:-true}
+      HUB_DEMO_PASSWORD: ${HUB_DEMO_PASSWORD:-Demo2026!}
+      # A crsr_ key is enough: the app detects Cursor and uses its default model.
+      HUB_AI_API_KEY: ${HUB_AI_API_KEY:-}
+    ports: ["8080:8080"]
+volumes:
+  pgdata:

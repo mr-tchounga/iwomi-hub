@@ -1,0 +1,34 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: iwomi-hub
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/iwomihub}
+    username: ${DB_USER:hub}
+    password: ${DB_PASSWORD:hub}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+  flyway:
+    enabled: true
+hub:
+  security:
+    token-secret: ${HUB_TOKEN_SECRET:dev-only-secret-change-me-please-0123456789}
+  demo:
+    enabled: ${HUB_DEMO:true}
+    password: ${HUB_DEMO_PASSWORD:Demo2026!}
+  admin:
+    user: ${HUB_ADMIN_USER:admin}
+    password: ${HUB_ADMIN_PASSWORD:admin}
+  ai:
+    # Usually only HUB_AI_API_KEY is needed: the provider is detected from the key (crsr_ = Cursor, AIza = Gemini, gsk_ = Groq, sk-or- = OpenRouter, sk-ant- = Claude, sk- = OpenAI).
+    # HUB_AI_PROVIDER can force: cursor, gemini, groq, openrouter, openai, ollama, anthropic. HUB_AI_BASE_URL and HUB_AI_MODEL override the defaults.
+    provider: ${HUB_AI_PROVIDER:}
+    api-key: ${HUB_AI_API_KEY:}
+    base-url: ${HUB_AI_BASE_URL:}
+    model: ${HUB_AI_MODEL:}
+    max-tokens-param: ${HUB_AI_MAX_TOKENS_PARAM:max_tokens}

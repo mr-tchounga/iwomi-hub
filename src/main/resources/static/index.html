@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IWOMI Hub</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Staff application (ADMIN, CTO, HR, ACCOUNTANT, EMPLOYEE) -->
+  <div id="staff" class="hidden">
+    <header>
+      <div class="brand"><span class="logo">&#9670;</span> IWOMI Hub</div>
+      <nav id="nav"></nav>
+      <div class="spacer"></div>
+      <span id="who" class="who"></span>
+      <button id="bell" class="icon" title="Notifications">&#128276;<span id="bellCount" class="count hidden">0</span></button>
+      <button id="chatBtn" class="primary">&#10024; Ask AI</button>
+      <button id="logout" class="dark">Log out</button>
+    </header>
+    <div id="notifPanel" class="panel hidden"></div>
+    <main id="view"></main>
+    <aside id="chat" class="chatbox hidden"></aside>
+  </div>
+
+  <!-- Public portal (visitors and external customers) -->
+  <div id="portal" class="hidden">
+    <header>
+      <div class="brand"><span class="logo">&#9670;</span> IWOMI <small>Solutions &amp; Support</small></div>
+      <nav id="pnav"></nav>
+      <div class="spacer"></div>
+      <span id="pwho" class="who"></span>
+      <button id="pLogin" class="primary">Log in</button>
+      <button id="pRegister" class="dark">Create account</button>
+      <button id="pLogout" class="dark hidden">Log out</button>
+    </header>
+    <main id="pview"></main>
+    <button id="pChatBtn" class="fab primary">&#10024; Ask IWOMI</button>
+    <aside id="pchat" class="chatbox hidden"></aside>
+  </div>
+
+  <div id="modal"></div>
+  <div id="toasts"></div>
+  <script src="app.js"></script>
+</body>
+</html>
