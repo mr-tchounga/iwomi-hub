@@ -90,6 +90,7 @@ Speech uses the browser's built-in engines (Chrome, Edge, Safari), so the availa
 | Tickets | all | all | – | – | own departments | own requests | create only |
 | Tasks | R/W | R/W | R | – | R, update own status | – | – |
 | AI accelerator | yes | yes | – | – | yes | – | – |
+| Opportunities | manage | read + advice | read + advice | read + advice | read + advice | – | – |
 | Settings, routing, app keys | yes | yes | – | – | – | – | – |
 | Users and roles | yes | – | – | – | – | – | – |
 | Staff AI assistant (data it can use) | all | all | people, tasks, projects | partners, KYC, sales | projects, own tickets, tasks | – | – |
@@ -152,7 +153,7 @@ This applies to tickets from apps, the portal form and the AI assistant (categor
 Login: `POST /api/auth/login`, `POST /api/auth/register` (customer), `GET /api/auth/me`. Send `Authorization: Bearer <token>`.
 Staff: `/api/projects`, `/api/components`, `/api/partners`, `/api/sales`, `/api/kyc`, `/api/kyc-documents`, `/api/departments`, `/api/employees`,
 `/api/tickets`, `/api/tasks`, `/api/routing-rules`, `/api/app-clients`, `/api/settings`, `/api/users`, `/api/notifications` (+ SSE `/stream`),
-`/api/dashboard`, `/api/chat`, `/api/accelerator/generate`.
+`/api/dashboard`, `/api/chat`, `/api/accelerator/generate`, `/api/opportunities` (+ `POST /advice`).
 Portal: `/api/portal/projects`, `/api/portal/requests`, `/api/portal/chat`. Customer: `/api/me/tickets`.
 
 ## Demo script (about 5 minutes)
@@ -198,6 +199,7 @@ Rules that apply to every use case:
 | [UC-20](#uc-20--generate-a-delivery-pack) | Generate a delivery pack | Admin, CTO, Employee |
 | [UC-21](#uc-21--ask-the-staff-assistant) | Ask the staff assistant | Staff |
 | [UC-22](#uc-22--administer-the-hub) | Administer the Hub | Admin, CTO |
+| [UC-23](#uc-23--use-a-stored-opportunity) | Use a stored opportunity | Employee |
 
 ### UC-01 — Browse the solution catalog
 
@@ -570,9 +572,28 @@ Rules that apply to every use case:
 
 **Result:** Access, routing, and app integration match the administration just saved.
 
+### UC-23 — Use a stored opportunity
+
+**Actors:** CTO, HR, Accountant, Employee. Admin maintains the catalog and does not receive personal advice. Customers and visitors have no access.  
+**Goal:** See concrete ways to use a salary or company cash, each one backed by a page the actor can open.  
+**Preconditions:** The actor is logged in as internal staff. Opportunities are stored with an https source.
+
+1. The actor opens **Opportunities** and filters Personal, Company, or both.
+2. Each card shows the idea and a source link. The actor opens the link to read the bank or BEAC page itself.
+3. The actor either asks about one card, or enters a monthly salary in XAF and a question (how to save, spend, or put money to work).
+4. The Hub answers only from the stored, active opportunities. Every recommendation names its source URL. It does not invent a rate, a minimum, or a product.
+
+**Extensions**
+
+- **4a.** With no AI provider, the catalog and the links still work. The advice step shows how to configure the provider.
+- **1a.** Admin creates, edits, or retires opportunities. An inactive row disappears from the staff list. Advice is refused for Admin.
+
+**Result:** The actor has a sourced suggestion, not an advertisement. The decision and the current figures stay on the source page.
+
 ## Known limits
 
-- Without a configured AI provider the assistants show a setup message instead of answering.
+- Without a configured AI provider the assistants show a setup message instead of answering. Opportunity links still open.
+- Opportunity advice is not a regulated recommendation. Rates and conditions are whatever the source page says.
 - Login tokens last 12 hours; there is no email verification or password reset yet.
 - Notifications are in-app and live (SSE). Email, WhatsApp and SMS sending are not implemented.
 - KYC documents are stored as links, not uploaded files; AI KYC review does not read images.

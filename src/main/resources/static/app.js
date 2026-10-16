@@ -49,6 +49,7 @@ const PERM = {
   tickets: { r: ['ADMIN', 'CTO', 'EMPLOYEE'], w: ['ADMIN', 'CTO', 'EMPLOYEE'] },
   tasks: { r: ['ADMIN', 'CTO', 'HR', 'EMPLOYEE'], w: ['ADMIN', 'CTO'] },
   accelerator: { r: ['ADMIN', 'CTO', 'EMPLOYEE'], w: ['ADMIN', 'CTO', 'EMPLOYEE'] },
+  opportunities: { r: ['ADMIN', 'CTO', 'HR', 'ACCOUNTANT', 'EMPLOYEE'], w: ['ADMIN'] },
   settings: { r: ['ADMIN', 'CTO'], w: ['ADMIN', 'CTO'] },
   users: { r: ['ADMIN'], w: ['ADMIN'] },
 };
@@ -307,6 +308,11 @@ const act = {
   'new-client': () => clientForm(),
   'edit-client': id => api('/api/app-clients/' + id).then(clientForm),
   'del-client': id => del('/api/app-clients/' + id),
+  'new-opp': () => opportunityForm(),
+  'edit-opp': id => opportunityForm(OPPS.find(o => o.id === id)),
+  'del-opp': id => del('/api/opportunities/' + id),
+  'opp-filter': (id, b) => { OPP_FILTER = b.ctx || 'ALL'; return opportunitiesView(); },
+  'opp-advise': id => askOpportunity(id),
   'new-user': () => userForm(),
   'edit-user': id => userForm(find(USERS, id)),
   'del-user': id => del('/api/users/' + id),
@@ -361,6 +367,7 @@ const forms = {
     await api('/api/settings', 'PUT', { key: 'default_ticket_department', value: f.value.value });
     toast('Default department saved');
   },
+  oppAdvice: f => askOpportunity(null, f),
 };
 document.addEventListener('submit', e => {
   const f = e.target.closest('[data-form]');
@@ -607,7 +614,7 @@ function renderAcc() {
 /* ---- users and roles (admin) ---- */
 async function usersView() {
   USERS = await api('/api/users');
-  const areas = [['projects', 'Projects and components'], ['partners', 'Partners'], ['sales', 'Sales and amounts'], ['kyc', 'Partner KYC'], ['team', 'Employees and departments'], ['tickets', 'Tickets'], ['tasks', 'Tasks'], ['accelerator', 'AI accelerator'], ['settings', 'Settings, routing, app keys'], ['users', 'Users and roles']];
+  const areas = [['projects', 'Projects and components'], ['partners', 'Partners'], ['sales', 'Sales and amounts'], ['kyc', 'Partner KYC'], ['team', 'Employees and departments'], ['tickets', 'Tickets'], ['tasks', 'Tasks'], ['opportunities', 'Opportunities'], ['accelerator', 'AI accelerator'], ['settings', 'Settings, routing, app keys'], ['users', 'Users and roles']];
   const cell = (a, r) => PERM[a].w.includes(r) ? '<span class="lvl-w">W</span>' : PERM[a].r.includes(r) ? '<span class="lvl-r">R</span>' : '·';
   view(head('Users and roles', btn('new-user', '', '+ New user', 'primary')) +
     table([{ h: 'User', f: u => `<b>${esc(u.fullName)}</b><div class="muted">${esc(u.username)}</div>` }, { h: 'Role', f: u => badge(u.role) },
@@ -633,13 +640,63 @@ async function settingsView() {
       clients, c => btn('edit-client', c.id, 'Edit') + ' ' + btn('del-client', c.id, 'Delete', 'danger')));
 }
 
+/* ---- stored opportunities (internal staff; admin maintains, does not get personal advice) ---- */
+let OPPS = [], OPP_FILTER = 'ALL';
+const AUD_LABEL = { PERSONAL: 'Personal', COMPANY: 'Company', BOTH: 'Personal and company' };
+function opportunityForm(o) {
+  openForm(o ? 'Edit opportunity' : 'New opportunity', [
+    { name: 'title', label: 'Title', required: true },
+    { name: 'summary', label: 'What to check', type: 'textarea', required: true },
+    { name: 'audience', label: 'For', type: 'select', required: true, options: [{ v: 'PERSONAL', l: 'Personal' }, { v: 'COMPANY', l: 'Company' }, { v: 'BOTH', l: 'Personal and company' }] },
+    { name: 'sourceName', label: 'Source name', required: true },
+    { name: 'sourceUrl', label: 'Source link (https)', required: true },
+    { name: 'active', label: 'Shown to staff', type: 'select', required: true, options: [{ v: 'true', l: 'Yes' }, { v: 'false', l: 'No' }] },
+  ], o ? { ...o, active: String(o.active) } : { audience: 'PERSONAL', active: 'true' },
+  out => save('/api/opportunities', o, { ...out, active: out.active === 'true' }));
+}
+function adviceHtml(src) {
+  return md(src).replace(/https?:\/\/[^\s<]+/g, u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
+}
+async function askOpportunity(id, form) {
+  const fromForm = form && form.elements;
+  const salaryRaw = fromForm ? form.salary.value : ($('#oppSalary') ? $('#oppSalary').value : '');
+  const question = (fromForm ? form.question.value : ($('#oppQuestion') ? $('#oppQuestion').value : '')).trim();
+  const salary = salaryRaw === '' || salaryRaw == null ? null : Number(salaryRaw);
+  const out = $('#oppOut');
+  if (out) out.innerHTML = '<p class="muted">Reading the stored opportunities… this can take a minute.</p>';
+  const res = await api('/api/opportunities/advice', 'POST', { salary, question: question || null, opportunityId: id || null });
+  if ($('#oppOut')) $('#oppOut').innerHTML = adviceHtml(res.advice);
+}
+async function opportunitiesView() {
+  OPPS = await api('/api/opportunities');
+  const mine = USER.role !== 'ADMIN';
+  const filters = [['ALL', 'All'], ['PERSONAL', 'Personal'], ['COMPANY', 'Company']];
+  const shown = OPPS.filter(o => OPP_FILTER === 'ALL' || o.audience === OPP_FILTER || o.audience === 'BOTH');
+  const cards = shown.map(o => `<div class="pcard"><div class="row">${badge(AUD_LABEL[o.audience] || o.audience)}${o.active ? '' : ' <span class="badge">hidden</span>'}</div>
+    <h3>${esc(o.title)}</h3><p>${esc(o.summary)}</p>
+    <p><a href="${esc(o.sourceUrl)}" target="_blank" rel="noopener">${esc(o.sourceName)}</a></p>
+    <div class="row" style="margin-top:10px">${mine ? btn('opp-advise', o.id, 'Advise me on this', 'primary') : ''} ${W('opportunities') ? btn('edit-opp', o.id, 'Edit') + ' ' + btn('del-opp', o.id, 'Delete', 'danger') : ''}</div></div>`).join('');
+  view(head('Opportunities', W('opportunities') ? btn('new-opp', '', '+ New opportunity', 'primary') : '') +
+    `<p class="muted">Ideas for using a salary or company cash. Each one is stored with a source you can open. They are not advertisements, and they are not personal financial advice.</p>
+    <div class="row" style="margin-bottom:12px">${filters.map(([k, l]) => `<button class="sm ${OPP_FILTER === k ? 'primary' : ''}" data-act="opp-filter" data-ctx="${k}">${l}</button>`).join('')}</div>
+    <div class="cards">${cards || '<p class="muted">Nothing in this list yet.</p>'}</div>` +
+    (mine ? `<div class="card" style="margin-top:8px"><h3 style="margin-top:0">Ask from my situation</h3>
+      <p class="muted">Give a monthly salary in XAF, ask how to save or put money to work, or use “Advise me on this” on a card. The answer may only use the ideas above and must point at their sources.</p>
+      <form class="stack" data-form="oppAdvice">
+        <label>Monthly salary (XAF)<input id="oppSalary" name="salary" type="number" min="0" step="1" placeholder="250000"></label>
+        <label>Question<textarea id="oppQuestion" name="question" placeholder="My salary is this. How should I keep some aside, and what is worth reading?"></textarea></label>
+        <button class="primary">Suggest how to use it</button>
+      </form><div id="oppOut"></div></div>` : `<p class="muted">You maintain this list. Personal advice is shown to the other internal roles, not to administrators or customers.</p>`));
+}
+
 /* ---- staff router ---- */
 const STAFF_NAV = [['dashboard', 'Dashboard', () => true], ['projects', 'Projects', () => can('projects')], ['partners', 'Partners', () => can('partners')],
   ['tickets', 'Tickets', () => can('tickets')], ['tasks', 'Tasks', () => can('tasks')], ['team', 'Team', () => can('team')],
+  ['opportunities', 'Opportunities', () => can('opportunities')],
   ['accelerator', 'Accelerator', () => can('accelerator')], ['users', 'Users', () => can('users')], ['settings', 'Settings', () => can('settings')]];
 const staffViews = {
   dashboard: dashboardView, projects: id => id ? projectDetail(id) : projectsView(), partners: id => id ? partnerDetail(id) : partnersView(),
-  tickets: id => id ? ticketDetail(id) : ticketsView(), tasks: tasksView, team: teamView, accelerator: acceleratorView, users: usersView, settings: settingsView,
+  tickets: id => id ? ticketDetail(id) : ticketsView(), tasks: tasksView, team: teamView, opportunities: opportunitiesView, accelerator: acceleratorView, users: usersView, settings: settingsView,
 };
 async function staffRoute() {
   const [page, id] = location.hash.replace(/^#\/?/, '').split('/');
